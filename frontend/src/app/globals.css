@@ -1,26 +1,106 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fcf9f8;
+  --foreground: #1b1c1c;
+
+  --primary: #855300;
+  --primary-light: #ffddb8;
+
+  --secondary: #944837;
+
+  --surface: #ffffff;
+  --surface-soft: #f6f3f2;
+  --surface-muted: #eae7e7;
+
+  --text-muted: #5f5e5a;
+  --border: #d8c3ae;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), Arial, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-heading {
+  font-family: var(--font-heading), Georgia, serif;
+}
+
+button,
+a {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--primary-light);
+  color: var(--foreground);
+}
+
+@keyframes floating {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: floating 3s ease-in-out infinite;
+}
+
+.intelligence-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.intelligence-shimmer::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 25%,
+    rgba(255, 221, 184, 0.3) 50%,
+    transparent 75%
+  );
+  animation: shimmer 6s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  from {
+    transform: translate(-30%, -30%);
+  }
+
+  to {
+    transform: translate(30%, 30%);
+  }
+}
+
+section {
+  scroll-margin-top: 80px;
 }
