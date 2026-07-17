@@ -314,9 +314,9 @@ export default function TableQrGenerator({
   }
 
   return (
-    <>
+    <div className="grid w-full min-w-0 gap-6 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
       {/* Generator form */}
-      <article className="rounded-2xl border border-[#d8c3ae] bg-white p-6 shadow-sm">
+      <article className="h-fit rounded-2xl border border-[#d8c3ae] bg-white p-6 shadow-sm">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffddb8] text-[#855300]">
           <QrCode size={23} />
         </div>
@@ -387,7 +387,7 @@ export default function TableQrGenerator({
       </article>
 
       {/* QR preview */}
-      <article className="flex min-h-[520px] items-center justify-center rounded-2xl border border-dashed border-[#d8c3ae] bg-white/60 p-8">
+      <article className="flex min-h-[380px] items-center justify-center rounded-2xl border border-dashed border-[#d8c3ae] bg-white/60 p-6 sm:min-h-[440px] sm:p-8">
         {!createdTable || !qrDataUrl ? (
           <div className="max-w-sm text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#f0eded] text-[#855300]">
@@ -458,6 +458,6 @@ export default function TableQrGenerator({
           </div>
         )}
       </article>
-    </>
+    </div>
   );
 }

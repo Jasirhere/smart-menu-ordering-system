@@ -43,7 +43,7 @@ export default function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-black/5 bg-[#f6f3f2] px-6 py-7 shadow-sm md:flex">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-black/5 bg-[#f6f3f2] px-6 py-7 shadow-sm xl:flex">
       <Link
         href="/admin/dashboard"
         className="font-heading text-[34px] font-bold text-[#855300]"

@@ -9,7 +9,9 @@ export default function AdminLayout({
     <div className="min-h-screen bg-[#fcf9f8]">
       <AdminSidebar />
 
-      <div className="min-h-screen md:ml-64">{children}</div>
+      <div className="min-h-screen min-w-0 overflow-x-hidden xl:ml-64">
+        {children}
+      </div>
     </div>
   );
 }

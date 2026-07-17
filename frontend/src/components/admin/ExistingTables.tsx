@@ -7,7 +7,7 @@ import {
   QrCode,
   Table2,
 } from "lucide-react";
-
+import SavedTableQr from "@/components/admin/SavedTableQr";
 import { createClient } from "@/lib/supabase/client";
 
 type RestaurantTable = {
@@ -133,7 +133,7 @@ export default function ExistingTables({
   }
 
   return (
-    <article className="rounded-2xl border border-[#d8c3ae] bg-white p-6 shadow-sm">
+    <article className="w-full min-w-0 rounded-2xl border border-[#d8c3ae] bg-white p-5 shadow-sm sm:p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="font-heading text-2xl font-semibold">
@@ -148,11 +148,11 @@ export default function ExistingTables({
         <QrCode size={25} className="text-[#855300]" />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid w-full min-w-0 grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {tables.map((table) => (
           <section
             key={table.id}
-            className="rounded-2xl border border-[#e8ddd2] bg-[#fcf9f8] p-5 transition hover:-translate-y-0.5 hover:shadow-md"
+            className="min-w-0 rounded-2xl border border-[#e8ddd2] bg-[#fcf9f8] p-5 transition hover:-translate-y-0.5 hover:shadow-md"
           >
             <div className="flex items-start justify-between">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffddb8] text-[#855300]">
@@ -179,19 +179,26 @@ export default function ExistingTables({
               {new Date(table.created_at).toLocaleDateString("en-GB")}
             </p>
 
-            <p className="mt-3 truncate text-xs text-[#857462]">
+            <p className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-[#857462]">
               Token: {table.public_token}
             </p>
 
-            <a
-              href={`/t/${table.public_token}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-[#d8c3ae] bg-white px-4 py-3 text-sm font-semibold text-[#855300] transition hover:bg-[#f6f3f2]"
-            >
-              <ExternalLink size={16} />
-              Open customer page
-            </a>
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <SavedTableQr
+                tableNumber={table.table_number}
+                publicToken={table.public_token}
+              />
+
+              <a
+                href={`/t/${table.public_token}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#d8c3ae] bg-white px-4 py-3 text-sm font-semibold text-[#855300]"
+              >
+                <ExternalLink size={16} />
+                Open
+              </a>
+            </div>
           </section>
         ))}
       </div>

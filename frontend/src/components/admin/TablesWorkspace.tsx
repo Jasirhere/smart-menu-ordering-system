@@ -9,7 +9,7 @@ export default function TablesWorkspace() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   return (
-    <section className="mt-10 grid gap-6 lg:grid-cols-[380px_1fr]">
+    <section className="mt-10 flex w-full min-w-0 flex-col gap-6">
       <TableQrGenerator
         onTableCreated={() => {
           setRefreshKey((currentKey) => currentKey + 1);
