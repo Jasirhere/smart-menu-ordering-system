@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.models.restaurant import Restaurant
 from app.models.restaurant_table import RestaurantTable
-
+from app.models.menu_item import MenuItem
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(
