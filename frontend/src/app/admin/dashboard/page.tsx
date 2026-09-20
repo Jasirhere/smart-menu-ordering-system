@@ -7,90 +7,136 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-const statistics = [
-  {
-    label: "TODAY'S ORDERS",
-    value: "42",
-    detail: "12%",
-    icon: TrendingUp,
-    detailClass: "text-[#855300]",
-  },
-  {
-    label: "TODAY'S REVENUE",
-    value: "£1,240",
-    detail: "",
-    icon: CreditCard,
-    detailClass: "text-[#855300]",
-  },
-  {
-    label: "AVG PREP TIME",
-    value: "12m",
-    detail: "",
-    icon: Clock3,
-    detailClass: "text-[#944837]",
-  },
-  {
-    label: "ACTIVE TABLES",
-    value: "15",
-    detail: "/ 24",
-    icon: ChefHat,
-    detailClass: "text-[#5f5e5a]",
-  },
-];
+type DashboardSummary = {
+  todays_orders: number;
+  todays_revenue: string;
+  active_orders: number;
+  recent_orders: {
+    id: string;
+    table_number: number;
+    status: string;
+    subtotal: string;
+    created_at: string;
+    items: {
+      item_name: string;
+      unit_price: string;
+      quantity: number;
+    }[];
+  }[];
+};
 
-const orders = [
-  {
-    table: "12",
-    items: "2x Wagyu Burger, 1x Truffle Fries",
-    time: "Started 18m ago",
-    state: "CRITICAL",
-    badge: "OVERDUE",
-    borderClass: "border-[#ba1a1a]",
-    tableClass: "bg-[#ffdad6] text-[#93000a]",
-    stateClass: "text-[#ba1a1a]",
-    badgeClass: "bg-[#ba1a1a] text-white",
-  },
-  {
-    table: "04",
-    items: "1x Seafood Paella, 2x Chardonnay",
-    time: "Started 10m ago",
-    state: "PREPARING",
-    badge: "AGING",
-    borderClass: "border-[#e89611]",
-    tableClass: "bg-[#ffddb8] text-[#2a1700]",
-    stateClass: "text-[#855300]",
-    badgeClass: "bg-[#e89611] text-[#583500]",
-  },
-  {
-    table: "08",
-    items: "1x Caesar Salad, 1x Sparkling Water",
-    time: "Started 2m ago",
-    state: "NEW",
-    badge: "FRESH",
-    borderClass: "border-green-600",
-    tableClass: "bg-green-50 text-green-800",
-    stateClass: "text-green-700",
-    badgeClass: "bg-green-100 text-green-700",
-  },
-  {
-    table: "21",
-    items: "3x Grilled Salmon",
-    time: "Started 4m ago",
-    state: "",
-    badge: "FRESH",
-    borderClass: "border-green-600",
-    tableClass: "bg-green-50 text-green-800",
-    stateClass: "",
-    badgeClass: "bg-green-100 text-green-700",
-  },
-];
+async function getDashboardSummary(): Promise<DashboardSummary> {
+  const apiBaseUrl = process.env.API_BASE_URL;
 
-export default function AdminDashboardPage() {
+  const response = await fetch(
+    `${apiBaseUrl}/admin/dashboard/summary`,
+    { cache: "no-store" },
+  );
+
+  if (!response.ok) {
+    throw new Error("Unable to load dashboard.");
+  }
+
+  return response.json();
+}
+
+export default async function AdminDashboardPage() {
+  const summary = await getDashboardSummary();
+
   const currentDate = new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
   }).format(new Date());
+
+  const statistics = [
+    {
+      label: "TODAY'S ORDERS",
+      value: String(summary.todays_orders),
+      detail: "",
+      icon: TrendingUp,
+      detailClass: "text-[#855300]",
+    },
+    {
+      label: "TODAY'S REVENUE",
+      value: new Intl.NumberFormat("en-GB", {
+        style: "currency",
+        currency: "GBP",
+      }).format(Number(summary.todays_revenue)),
+      detail: "",
+      icon: CreditCard,
+      detailClass: "text-[#855300]",
+    },
+    {
+      label: "ACTIVE ORDERS",
+      value: String(summary.active_orders),
+      detail: "",
+      icon: Clock3,
+      detailClass: "text-[#944837]",
+    },
+    {
+      label: "RECENT ORDERS",
+      value: String(summary.recent_orders.length),
+      detail: "",
+      icon: ChefHat,
+      detailClass: "text-[#5f5e5a]",
+    },
+  ];
+
+  const orders = summary.recent_orders.map((order) => {
+    const items = order.items
+      .map((item) => `${item.quantity}x ${item.item_name}`)
+      .join(", ");
+
+    const statusStyles = {
+      pending: {
+        state: "PENDING",
+        badge: "NEW",
+        borderClass: "border-orange-500",
+        tableClass: "bg-orange-100 text-orange-800",
+        stateClass: "text-orange-700",
+        badgeClass: "bg-orange-100 text-orange-700",
+      },
+      preparing: {
+        state: "PREPARING",
+        badge: "COOKING",
+        borderClass: "border-blue-500",
+        tableClass: "bg-blue-100 text-blue-800",
+        stateClass: "text-blue-700",
+        badgeClass: "bg-blue-100 text-blue-700",
+      },
+      ready: {
+        state: "READY",
+        badge: "READY",
+        borderClass: "border-green-600",
+        tableClass: "bg-green-100 text-green-800",
+        stateClass: "text-green-700",
+        badgeClass: "bg-green-100 text-green-700",
+      },
+      served: {
+        state: "SERVED",
+        badge: "DONE",
+        borderClass: "border-stone-400",
+        tableClass: "bg-stone-100 text-stone-700",
+        stateClass: "text-stone-600",
+        badgeClass: "bg-stone-100 text-stone-600",
+      },
+    };
+
+    const style =
+      statusStyles[order.status as keyof typeof statusStyles];
+
+    return {
+      id: order.id,
+      table: String(order.table_number),
+      items,
+      time: new Date(order.created_at).toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      ...style,
+    };
+  });
 
   return (
     <main className="min-h-screen bg-[#fcf9f8] px-5 py-8 md:px-10 md:py-12 lg:px-12">
@@ -161,7 +207,7 @@ export default function AdminDashboardPage() {
 
           {orders.map((order) => (
             <article
-              key={order.table}
+              key={order.id}
               className={`flex cursor-pointer flex-col gap-4 rounded-xl border-l-4 bg-white p-4 shadow-sm transition hover:translate-x-1 sm:flex-row sm:items-center ${order.borderClass}`}
             >
               <div

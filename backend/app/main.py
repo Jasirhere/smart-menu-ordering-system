@@ -4,10 +4,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from app.api.routes.public_tables import router as public_tables_router
-from app.api.routes.admin_tables import router as admin_tables_router
 from app.core.config import settings
 from app.db.session import engine
-
+from app.api.routes.orders import router as orders_router
+from app.api.routes.admin_tables import router as admin_tables_router
+from app.api.routes.admin_orders import router as admin_orders_router
+from app.api.routes.admin_dashboard import router as admin_dashboard_router
+from app.api.routes.admin_menu import router as admin_menu_router
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +27,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(admin_tables_router)
-app.include_router(public_tables_router)
 
+app.include_router(public_tables_router)
+app.include_router(public_tables_router)
+app.include_router(orders_router)
+app.include_router(public_tables_router)
+app.include_router(orders_router)
+app.include_router(admin_tables_router)
+app.include_router(admin_orders_router)
+app.include_router(admin_dashboard_router)
+app.include_router(admin_menu_router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}

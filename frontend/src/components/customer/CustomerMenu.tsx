@@ -34,6 +34,15 @@ export type PublicTableResponse = {
 
 type CustomerMenuProps = {
   table: PublicTableResponse;
+  publicToken: string;
+};
+
+type PlacedOrder = {
+  id: string;
+  status: string;
+  subtotal: string;
+  table_number: number;
+  created_at: string;
 };
 
 function formatPrice(price: string): string {
@@ -43,11 +52,16 @@ function formatPrice(price: string): string {
   }).format(Number(price));
 }
 
-export default function CustomerMenu({ table }: CustomerMenuProps) {
+export default function CustomerMenu({
+  table,
+  publicToken,
+}: CustomerMenuProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(null);
 
   function addToCart(menuItemId: string) {
     setCart((currentCart) => ({
@@ -76,6 +90,46 @@ export default function CustomerMenu({ table }: CustomerMenuProps) {
   function clearCart() {
     setCart({});
     setIsCartOpen(false);
+  }
+  async function placeOrder() {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+    if (!apiBaseUrl) {
+      alert("API URL is not configured.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await fetch(`${apiBaseUrl}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          public_token: publicToken,
+          items: cartItems.map((item) => ({
+            menu_item_id: item.id,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Order failed");
+      }
+
+      const order: PlacedOrder = await response.json();
+
+      setCart({});
+      setIsCartOpen(false);
+      setPlacedOrder(order);
+    } catch {
+      alert("Could not place order. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const categories = useMemo(
@@ -129,7 +183,7 @@ export default function CustomerMenu({ table }: CustomerMenuProps) {
     (total, menuItem) =>
       total +
       Number(menuItem.price) *
-        (cart[menuItem.id] ?? 0),
+      (cart[menuItem.id] ?? 0),
     0,
   );
 
@@ -151,6 +205,32 @@ export default function CustomerMenu({ table }: CustomerMenuProps) {
 
   return (
     <main className="min-h-screen bg-[#fbf7f3] pb-32 text-[#241c18]">
+      {placedOrder && (
+        <div className="mx-auto mt-5 max-w-xl px-5">
+          <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-center">
+            <h2 className="text-xl font-bold text-green-800">
+              Order placed ✅
+            </h2>
+
+            <p className="mt-2">
+              Table {placedOrder.table_number}
+            </p>
+
+            <p className="font-semibold">
+              Total: {formatPrice(placedOrder.subtotal)}
+            </p>
+
+            <p className="capitalize">
+              Status: {placedOrder.status}
+            </p>
+
+            <p className="mt-2 text-xs text-gray-500">
+              Order ID: {placedOrder.id}
+            </p>
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 z-40 border-b border-[#eaded4] bg-[#fbf7f3]/95 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8 lg:px-12">
           <div className="min-w-0">
@@ -225,8 +305,8 @@ export default function CustomerMenu({ table }: CustomerMenuProps) {
                 style={
                   featuredItem.image_url
                     ? {
-                        backgroundImage: `url("${featuredItem.image_url}")`,
-                      }
+                      backgroundImage: `url("${featuredItem.image_url}")`,
+                    }
                     : undefined
                 }
               />
@@ -300,11 +380,10 @@ export default function CustomerMenu({ table }: CustomerMenuProps) {
                   onClick={() =>
                     setActiveCategory(category)
                   }
-                  className={`shrink-0 rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
-                    isActive
-                      ? "border-[#9a5d00] bg-[#9a5d00] text-white"
-                      : "border-[#e1d2c6] bg-white text-[#4e4037] hover:border-[#9a5d00]"
-                  }`}
+                  className={`shrink-0 rounded-full border px-5 py-2.5 text-sm font-semibold transition ${isActive
+                    ? "border-[#9a5d00] bg-[#9a5d00] text-white"
+                    : "border-[#e1d2c6] bg-white text-[#4e4037] hover:border-[#9a5d00]"
+                    }`}
                 >
                   {category}
                 </button>
@@ -388,7 +467,7 @@ export default function CustomerMenu({ table }: CustomerMenuProps) {
 
                     <div className="mt-auto border-t border-[#eee3da] pt-4">
                       {(cart[menuItem.id] ?? 0) ===
-                      0 ? (
+                        0 ? (
                         <button
                           type="button"
                           onClick={() =>
@@ -500,6 +579,8 @@ export default function CustomerMenu({ table }: CustomerMenuProps) {
         onAdd={addToCart}
         onRemove={removeFromCart}
         onClear={clearCart}
+        onPlaceOrder={placeOrder}
+        isSubmitting={isSubmitting}
       />
     </main>
   );

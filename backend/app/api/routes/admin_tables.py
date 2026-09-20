@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.core.auth import get_current_restaurant_member
+
 from app.db.session import get_db
-from app.models.restaurant_member import RestaurantMember
+from app.models.restaurant import Restaurant
 from app.models.restaurant_table import RestaurantTable
 from app.schemas.restaurant_table import (
     RestaurantTableCreate,
@@ -17,31 +17,44 @@ router = APIRouter(
     tags=["Admin Tables"],
 )
 
+
+async def get_dev_restaurant(db: AsyncSession) -> Restaurant:
+    result = await db.execute(
+        select(Restaurant).where(
+            Restaurant.slug == "the-bistro-downtown"
+        )
+    )
+
+    restaurant = result.scalar_one_or_none()
+
+    if restaurant is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Restaurant not found",
+        )
+
+    return restaurant
+
+
 @router.get(
     "",
     response_model=list[RestaurantTableResponse],
 )
 async def list_restaurant_tables(
-    member: RestaurantMember = Depends(
-        get_current_restaurant_member
-    ),
     db: AsyncSession = Depends(get_db),
 ) -> list[RestaurantTable]:
-    if member.role not in {"owner", "admin"}:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
+
+    restaurant = await get_dev_restaurant(db)
 
     result = await db.execute(
         select(RestaurantTable)
-        .where(
-            RestaurantTable.restaurant_id == member.restaurant_id
-        )
+        .where(RestaurantTable.restaurant_id == restaurant.id)
         .order_by(RestaurantTable.table_number)
     )
 
     return list(result.scalars().all())
+
+
 @router.post(
     "",
     response_model=RestaurantTableResponse,
@@ -49,19 +62,13 @@ async def list_restaurant_tables(
 )
 async def create_restaurant_table(
     table_data: RestaurantTableCreate,
-    member: RestaurantMember = Depends(
-        get_current_restaurant_member
-    ),
     db: AsyncSession = Depends(get_db),
 ) -> RestaurantTable:
-    if member.role not in {"owner", "admin"}:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
+
+    restaurant = await get_dev_restaurant(db)
 
     restaurant_table = RestaurantTable(
-        restaurant_id=member.restaurant_id,
+        restaurant_id=restaurant.id,
         table_number=table_data.table_number,
     )
 

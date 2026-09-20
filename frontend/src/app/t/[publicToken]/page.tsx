@@ -64,5 +64,10 @@ export default async function PublicTablePage({
     );
   }
 
-  return <CustomerMenu table={table} />;
+  return (
+    <CustomerMenu
+      table={table}
+      publicToken={publicToken}
+    />
+  );
 }

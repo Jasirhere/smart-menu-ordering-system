@@ -26,6 +26,8 @@ type CartReviewDrawerProps = {
   onAdd: (menuItemId: string) => void;
   onRemove: (menuItemId: string) => void;
   onClear: () => void;
+  onPlaceOrder: () => void;
+  isSubmitting: boolean;
 };
 
 function formatPrice(price: number): string {
@@ -45,6 +47,8 @@ export default function CartReviewDrawer({
   onAdd,
   onRemove,
   onClear,
+  onPlaceOrder,
+  isSubmitting,
 }: CartReviewDrawerProps) {
   useEffect(() => {
     if (!isOpen) {
@@ -208,15 +212,15 @@ export default function CartReviewDrawer({
 
           <button
             type="button"
-            disabled
-            className="mt-5 flex w-full cursor-not-allowed items-center justify-center rounded-2xl bg-[#9a5d00]/55 px-5 py-4 font-bold text-white"
+            onClick={onPlaceOrder}
+            disabled={isSubmitting || items.length === 0}
+            className="mt-5 flex w-full items-center justify-center rounded-2xl bg-[#9a5d00] px-5 py-4 font-bold text-white transition hover:bg-[#7f4d00] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Place order
+            {isSubmitting ? "Placing order..." : "Place Order"}
           </button>
 
           <p className="mt-3 text-center text-xs leading-5 text-[#85776e]">
-            Order submission will be connected to the backend in the next
-            step.
+            Your order will be sent to the restaurant.
           </p>
         </footer>
       </aside>

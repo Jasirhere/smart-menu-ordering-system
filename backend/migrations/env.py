@@ -12,6 +12,8 @@ from app.db.base import Base
 from app.models.restaurant import Restaurant
 from app.models.restaurant_table import RestaurantTable
 from app.models.menu_item import MenuItem
+from app.models.order import Order
+from app.models.order_item import OrderItem
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(

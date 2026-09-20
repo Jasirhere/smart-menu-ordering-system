@@ -8,7 +8,6 @@ import {
   Table2,
 } from "lucide-react";
 import SavedTableQr from "@/components/admin/SavedTableQr";
-import { createClient } from "@/lib/supabase/client";
 
 type RestaurantTable = {
   id: string;
@@ -37,27 +36,13 @@ export default function ExistingTables({
       setErrorMessage("");
 
       try {
-        const supabase = createClient();
-
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (!session) {
-          throw new Error("Your login session has expired.");
-        }
-
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
         if (!apiBaseUrl) {
           throw new Error("Backend API URL is not configured.");
         }
 
-        const response = await fetch(`${apiBaseUrl}/admin/tables`, {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        });
+        const response = await fetch(`${apiBaseUrl}/admin/tables`);
 
         const responseData = await response.json();
 

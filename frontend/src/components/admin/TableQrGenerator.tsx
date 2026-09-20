@@ -11,8 +11,6 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 
-import { createClient } from "@/lib/supabase/client";
-
 type CreatedTable = {
   id: string;
   table_number: number;
@@ -65,16 +63,6 @@ export default function TableQrGenerator({
         throw new Error("Enter a valid table number between 1 and 999.");
       }
 
-      const supabase = createClient();
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        throw new Error("Your login session has expired. Please sign in again.");
-      }
-
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
       if (!apiBaseUrl) {
@@ -84,7 +72,6 @@ export default function TableQrGenerator({
       const response = await fetch(`${apiBaseUrl}/admin/tables`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
