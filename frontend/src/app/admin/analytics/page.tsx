@@ -32,6 +32,12 @@ type PeriodComparison = {
   average_order_value_change_percent: string | null;
 };
 
+type RatedItem = {
+  item_name: string;
+  average_rating: string;
+  ratings_count: number;
+};
+
 type AnalyticsSummary = {
   total_orders: number;
   total_revenue: string;
@@ -41,6 +47,11 @@ type AnalyticsSummary = {
   peak_hours: PeakHour[];
   low_selling_items: LowSellingItem[];
   comparison: PeriodComparison | null;
+  total_feedback: number;
+  average_rating: string | null;
+  feedback_response_rate: string | null;
+  best_rated_items: RatedItem[];
+  low_rated_items: RatedItem[];
 };
 
 function formatCurrency(value: string) {
@@ -222,6 +233,44 @@ export default async function AnalyticsPage({
         </div>
       </section>
 
+      <section className="mt-6 grid gap-5 md:grid-cols-3">
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <p className="text-sm text-[#5f5e5a]">
+            Average Rating
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {analytics.average_rating
+              ? `${Number(analytics.average_rating).toFixed(1)} ★`
+              : "No ratings"}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <p className="text-sm text-[#5f5e5a]">
+            Total Feedback
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {analytics.total_feedback}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <p className="text-sm text-[#5f5e5a]">
+            Feedback Response Rate
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {analytics.feedback_response_rate
+              ? `${Number(
+                  analytics.feedback_response_rate,
+                ).toFixed(1)}%`
+              : "N/A"}
+          </p>
+        </div>
+      </section>
+
       <AnalyticsCharts
         dailySales={analytics.daily_sales}
         topSellingItems={analytics.top_selling_items}
@@ -297,6 +346,56 @@ export default async function AnalyticsPage({
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="mt-8 grid gap-6 xl:grid-cols-2">
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="font-heading text-2xl font-bold">
+            Best Rated Items
+          </h2>
+
+          <div className="mt-5 space-y-4">
+            {analytics.best_rated_items.map((item) => (
+              <div
+                key={item.item_name}
+                className="flex justify-between border-b pb-3 last:border-0"
+              >
+                <span className="font-semibold">
+                  {item.item_name}
+                </span>
+
+                <span>
+                  {Number(item.average_rating).toFixed(1)} ★ {" "}
+                  ({item.ratings_count})
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="font-heading text-2xl font-bold">
+            Needs Attention
+          </h2>
+
+          <div className="mt-5 space-y-4">
+            {analytics.low_rated_items.map((item) => (
+              <div
+                key={item.item_name}
+                className="flex justify-between border-b pb-3 last:border-0"
+              >
+                <span className="font-semibold">
+                  {item.item_name}
+                </span>
+
+                <span>
+                  {Number(item.average_rating).toFixed(1)} ★ {" "}
+                  ({item.ratings_count})
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </main>

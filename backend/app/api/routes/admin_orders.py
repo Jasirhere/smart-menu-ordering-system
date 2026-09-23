@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -127,6 +128,9 @@ async def update_order_status(
         )
 
     order.status = payload.status
+
+    if payload.status == "served":
+        order.served_at = datetime.now(timezone.utc)
 
     await db.commit()
     await db.refresh(order)

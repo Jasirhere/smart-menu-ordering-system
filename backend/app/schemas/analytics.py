@@ -30,6 +30,11 @@ class PeriodComparison(BaseModel):
     revenue_change_percent: Decimal | None
     average_order_value_change_percent: Decimal | None
 
+class RatedItem(BaseModel):
+    item_name: str
+    average_rating: Decimal
+    ratings_count: int
+
 class AnalyticsSummaryResponse(BaseModel):
     total_orders: int
     total_revenue: Decimal
@@ -39,3 +44,8 @@ class AnalyticsSummaryResponse(BaseModel):
     peak_hours: list[PeakHour]
     low_selling_items: list[LowSellingItem]
     comparison: PeriodComparison | None = None
+    total_feedback: int
+    average_rating: Decimal | None
+    feedback_response_rate: Decimal | None
+    best_rated_items: list[RatedItem]
+    low_rated_items: list[RatedItem]

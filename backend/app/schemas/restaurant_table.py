@@ -31,6 +31,9 @@ class PublicMenuItemResponse(BaseModel):
     dietary_label: str | None
     sort_order: int
 
+    average_rating: Decimal | None = None
+    ratings_count: int = 0
+
 
 class PublicRestaurantTableResponse(BaseModel):
     restaurant_name: str

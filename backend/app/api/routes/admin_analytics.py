@@ -16,8 +16,10 @@ from app.schemas.analytics import (
     LowSellingItem,
     PeakHour,
     PeriodComparison,
+    RatedItem,
 )
-
+from app.models.feedback import Feedback
+from app.models.feedback_item_rating import FeedbackItemRating
 router = APIRouter(
     prefix="/admin/analytics",
     tags=["Admin Analytics"],
@@ -291,6 +293,128 @@ async def get_analytics_summary(
         for row in low_items_result.all()
     ]
 
+    feedback_summary_result = await db.execute(
+        select(
+            func.count(Feedback.id),
+            func.avg(Feedback.overall_rating),
+        )
+        .join(
+            Order,
+            Feedback.order_id == Order.id,
+        )
+        .where(*order_filters)
+    )
+
+    total_feedback, average_rating = feedback_summary_result.one()
+
+    total_feedback = total_feedback or 0
+
+    average_rating = (
+        Decimal(str(average_rating)).quantize(
+            Decimal("0.01")
+        )
+        if average_rating is not None
+        else None
+    )
+
+    served_orders_result = await db.execute(
+        select(
+            func.count(Order.id)
+        ).where(
+            *order_filters,
+            Order.status == "served",
+        )
+    )
+
+    served_orders = served_orders_result.scalar_one() or 0
+
+    feedback_response_rate = (
+        (
+            Decimal(total_feedback)
+            / Decimal(served_orders)
+            * Decimal("100")
+        ).quantize(Decimal("0.01"))
+        if served_orders > 0
+        else None
+    )
+
+    item_ratings_query = (
+        select(
+            MenuItem.name.label("item_name"),
+            func.avg(
+                FeedbackItemRating.rating
+            ).label("average_rating"),
+            func.count(
+                FeedbackItemRating.id
+            ).label("ratings_count"),
+        )
+        .join(
+            OrderItem,
+            FeedbackItemRating.order_item_id
+            == OrderItem.id,
+        )
+        .join(
+            Feedback,
+            FeedbackItemRating.feedback_id
+            == Feedback.id,
+        )
+        .join(
+            Order,
+            Feedback.order_id == Order.id,
+        )
+        .join(
+            MenuItem,
+            OrderItem.menu_item_id == MenuItem.id,
+        )
+        .where(*order_filters)
+        .group_by(
+            MenuItem.id,
+            MenuItem.name,
+        )
+    )
+
+    best_rated_result = await db.execute(
+        item_ratings_query
+        .order_by(
+            func.avg(
+                FeedbackItemRating.rating
+            ).desc()
+        )
+        .limit(5)
+    )
+
+    best_rated_items = [
+        RatedItem(
+            item_name=row.item_name,
+            average_rating=Decimal(
+                str(row.average_rating)
+            ).quantize(Decimal("0.01")),
+            ratings_count=row.ratings_count,
+        )
+        for row in best_rated_result.all()
+    ]
+
+    low_rated_result = await db.execute(
+        item_ratings_query
+        .order_by(
+            func.avg(
+                FeedbackItemRating.rating
+            ).asc()
+        )
+        .limit(5)
+    )
+
+    low_rated_items = [
+        RatedItem(
+            item_name=row.item_name,
+            average_rating=Decimal(
+                str(row.average_rating)
+            ).quantize(Decimal("0.01")),
+            ratings_count=row.ratings_count,
+        )
+        for row in low_rated_result.all()
+    ]
+
     return AnalyticsSummaryResponse(
         total_orders=total_orders,
         total_revenue=total_revenue,
@@ -300,4 +424,9 @@ async def get_analytics_summary(
         peak_hours=peak_hours,
         low_selling_items=low_selling_items,
         comparison=comparison,
+        total_feedback=total_feedback,
+        average_rating=average_rating,
+        feedback_response_rate=feedback_response_rate,
+        best_rated_items=best_rated_items,
+        low_rated_items=low_rated_items,
     )

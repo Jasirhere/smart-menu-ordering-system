@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChefHat,
   Minus,
@@ -11,7 +11,7 @@ import {
   Sparkles,
   UtensilsCrossed,
 } from "lucide-react";
-
+import { useRouter } from "next/navigation";
 import CartReviewDrawer from "@/components/customer/CartReviewDrawer";
 
 export type PublicMenuItem = {
@@ -23,6 +23,14 @@ export type PublicMenuItem = {
   image_url: string | null;
   dietary_label: string | null;
   sort_order: number;
+  average_rating: string | null;
+  ratings_count: number;
+};
+
+type PublicReview = {
+  overall_rating: number;
+  comment: string;
+  created_at: string;
 };
 
 export type PublicTableResponse = {
@@ -39,6 +47,7 @@ type CustomerMenuProps = {
 
 type PlacedOrder = {
   id: string;
+  public_token: string;
   status: string;
   subtotal: string;
   table_number: number;
@@ -56,12 +65,38 @@ export default function CustomerMenu({
   table,
   publicToken,
 }: CustomerMenuProps) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(null);
+  const [reviews, setReviews] = useState<PublicReview[]>([]);
+
+  function stars(rating: number) {
+    return "★".repeat(rating) + "☆".repeat(5 - rating);
+  }
+
+  useEffect(() => {
+    async function loadReviews() {
+      const apiBaseUrl =
+        process.env.NEXT_PUBLIC_API_BASE_URL;
+
+      const response = await fetch(
+        `${apiBaseUrl}/public/tables/${publicToken}/reviews`,
+      );
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+      setReviews(data);
+    }
+
+    loadReviews();
+  }, [publicToken]);
 
   function addToCart(menuItemId: string) {
     setCart((currentCart) => ({
@@ -120,11 +155,12 @@ export default function CustomerMenu({
         throw new Error("Order failed");
       }
 
-      const order: PlacedOrder = await response.json();
+      const createdOrder: PlacedOrder = await response.json();
 
       setCart({});
       setIsCartOpen(false);
-      setPlacedOrder(order);
+      setPlacedOrder(createdOrder);
+      router.push(`/order/${createdOrder.public_token}`);
     } catch {
       alert("Could not place order. Please try again.");
     } finally {
@@ -453,6 +489,22 @@ export default function CustomerMenu({
                       </p>
                     </div>
 
+                    {menuItem.ratings_count > 0 ? (
+                      <p className="mt-2 text-sm font-medium text-amber-600">
+                        ★ {Number(menuItem.average_rating).toFixed(1)}
+                        <span className="ml-1 text-[#5f5e5a]">
+                          ({menuItem.ratings_count}{" "}
+                          {menuItem.ratings_count === 1
+                            ? "rating"
+                            : "ratings"})
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-[#8a8985]">
+                        No ratings yet
+                      </p>
+                    )}
+
                     <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#71645b]">
                       {menuItem.description}
                     </p>
@@ -533,6 +585,47 @@ export default function CustomerMenu({
           )}
         </section>
       </div>
+
+      {reviews.length > 0 && (
+        <section className="mt-10">
+          <div className="mb-5">
+            <h2 className="font-heading text-2xl font-bold">
+              Customer Reviews
+            </h2>
+
+            <p className="mt-1 text-sm text-[#5f5e5a]">
+              What customers are saying.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {reviews.map((review, index) => (
+              <article
+                key={`${review.created_at}-${index}`}
+                className="rounded-2xl border bg-white p-5 shadow-sm"
+              >
+                <p className="text-lg text-amber-500">
+                  {stars(review.overall_rating)}
+                </p>
+
+                <p className="mt-3 leading-7">
+                  “{review.comment}”
+                </p>
+
+                <p className="mt-4 text-xs text-[#77736f]">
+                  {new Date(
+                    review.created_at,
+                  ).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {totalCartItems > 0 && (
         <div className="fixed inset-x-0 bottom-4 z-50 px-4 sm:px-6">

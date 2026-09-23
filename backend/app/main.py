@@ -12,7 +12,8 @@ from app.api.routes.admin_orders import router as admin_orders_router
 from app.api.routes.admin_dashboard import router as admin_dashboard_router
 from app.api.routes.admin_menu import router as admin_menu_router
 from app.api.routes.admin_analytics import router as admin_analytics_router
-
+from app.api.routes.public_feedback import router as public_feedback_router
+from app.api.routes.admin_feedback import router as admin_feedback_router
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -39,6 +40,8 @@ app.include_router(admin_orders_router)
 app.include_router(admin_dashboard_router)
 app.include_router(admin_menu_router)
 app.include_router(admin_analytics_router)
+app.include_router(public_feedback_router)
+app.include_router(admin_feedback_router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}

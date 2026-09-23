@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-
+import uuid
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
@@ -36,6 +36,15 @@ class Order(Base):
         default=uuid.uuid4,
     )
 
+    public_token: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        default=uuid.uuid4,
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    
+
     restaurant_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("restaurants.id", ondelete="CASCADE"),
@@ -68,9 +77,15 @@ class Order(Base):
         server_default=func.now(),
     )
 
+    served_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
     )
+    

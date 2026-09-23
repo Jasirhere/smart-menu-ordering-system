@@ -46,6 +46,7 @@ class OrderResponse(BaseModel):
     subtotal: Decimal
     table_number: int
     created_at: datetime
+    public_token: uuid.UUID
 
 class AdminOrderItemResponse(BaseModel):
     item_name: str
@@ -70,3 +71,23 @@ class DashboardSummaryResponse(BaseModel):
     todays_revenue: Decimal
     active_orders: int
     recent_orders: list[AdminOrderResponse]
+
+class OrderTrackingItemResponse(BaseModel):
+    id: uuid.UUID
+    item_name: str
+    unit_price: Decimal
+    quantity: int
+
+class OrderTrackingResponse(BaseModel):
+    public_token: uuid.UUID
+    status: str
+    subtotal: Decimal
+    table_number: int
+    created_at: datetime
+    items: list[OrderTrackingItemResponse]
+
+    feedback_submitted: bool
+    feedback_available: bool
+    feedback_deadline: datetime | None
+    
+
