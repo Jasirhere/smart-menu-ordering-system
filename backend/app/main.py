@@ -14,6 +14,9 @@ from app.api.routes.admin_menu import router as admin_menu_router
 from app.api.routes.admin_analytics import router as admin_analytics_router
 from app.api.routes.public_feedback import router as public_feedback_router
 from app.api.routes.admin_feedback import router as admin_feedback_router
+from app.api.routes.ai_menu import router as ai_menu_router
+from app.api.routes.public_staff_requests import router as public_staff_requests_router
+from app.api.routes.admin_staff_requests import router as admin_staff_requests_router
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -31,9 +34,6 @@ app.add_middleware(
 
 
 app.include_router(public_tables_router)
-app.include_router(public_tables_router)
-app.include_router(orders_router)
-app.include_router(public_tables_router)
 app.include_router(orders_router)
 app.include_router(admin_tables_router)
 app.include_router(admin_orders_router)
@@ -42,6 +42,10 @@ app.include_router(admin_menu_router)
 app.include_router(admin_analytics_router)
 app.include_router(public_feedback_router)
 app.include_router(admin_feedback_router)
+app.include_router(ai_menu_router)
+app.include_router(public_staff_requests_router)
+app.include_router(admin_staff_requests_router)
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}

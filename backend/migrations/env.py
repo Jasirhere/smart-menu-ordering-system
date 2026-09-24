@@ -16,7 +16,7 @@ from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.feedback import Feedback
 from app.models.feedback_item_rating import FeedbackItemRating
-
+from app.models.staff_request import StaffRequest
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(
         asyncio.WindowsSelectorEventLoopPolicy()

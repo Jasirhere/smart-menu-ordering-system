@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CartReviewDrawer from "@/components/customer/CartReviewDrawer";
-
+import AiMenuAssistant from "@/components/customer/AiMenuAssistant";
+import CallStaff from "./CallStaff";
 export type PublicMenuItem = {
   id: string;
   name: string;
@@ -73,7 +74,7 @@ export default function CustomerMenu({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(null);
   const [reviews, setReviews] = useState<PublicReview[]>([]);
-
+  const [showAiAssistant, setShowAiAssistant] = useState(false);
   function stars(rating: number) {
     return "★".repeat(rating) + "☆".repeat(5 - rating);
   }
@@ -675,6 +676,53 @@ export default function CustomerMenu({
         onPlaceOrder={placeOrder}
         isSubmitting={isSubmitting}
       />
+
+      <button
+        type="button"
+        onClick={() => setShowAiAssistant(true)}
+        className="fixed bottom-6 right-6 z-40 rounded-full bg-[#855300] px-5 py-3 font-semibold text-white shadow-lg"
+      >
+        ✨ Ask AI
+      </button>
+
+      {showAiAssistant && (
+        <div className="fixed inset-0 z-50 bg-black/40">
+          <div className="absolute bottom-0 right-0 h-[85vh] w-full max-w-md bg-white shadow-2xl sm:bottom-4 sm:right-4 sm:h-[620px] sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div>
+                <p className="font-heading text-xl font-bold">
+                  Ask TableMind
+                </p>
+
+                <p className="text-xs text-[#5f5e5a]">
+                  AI-powered menu assistant
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAiAssistant(false)}
+                className="rounded-lg px-3 py-2 text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <AiMenuAssistant
+              publicToken={publicToken}
+              onAddToOrder={(menuItemId) =>
+                setCart((current) => ({
+                  ...current,
+                  [menuItemId]:
+                    (current[menuItemId] || 0) + 1,
+                }))
+              }
+            />
+          </div>
+        </div>
+      )}
+
+      <CallStaff publicToken={publicToken} />
     </main>
   );
 }
