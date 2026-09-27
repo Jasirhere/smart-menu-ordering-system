@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import CartReviewDrawer from "@/components/customer/CartReviewDrawer";
 import AiMenuAssistant from "@/components/customer/AiMenuAssistant";
 import CallStaff from "./CallStaff";
+import JoinTableSession from "@/components/customer/JoinTableSession";
 export type PublicMenuItem = {
   id: string;
   name: string;
@@ -55,6 +56,22 @@ type PlacedOrder = {
   created_at: string;
 };
 
+type TableSessionIdentity = {
+  session_public_token: string;
+  participant_public_token: string;
+  display_name: string;
+  table_number: number;
+};
+
+type SharedCartItem = {
+  menu_item_id: string;
+  name: string;
+  price: string;
+  quantity: number;
+  participant_public_token: string;
+  participant_name: string;
+};
+
 function formatPrice(price: string): string {
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
@@ -75,8 +92,53 @@ export default function CustomerMenu({
   const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(null);
   const [reviews, setReviews] = useState<PublicReview[]>([]);
   const [showAiAssistant, setShowAiAssistant] = useState(false);
+  const [tableSession, setTableSession] =
+    useState<TableSessionIdentity | null>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [sharedCartItems, setSharedCartItems] =
+    useState<SharedCartItem[]>([]);
+
+  function applySharedCart(items: SharedCartItem[]) {
+    setSharedCartItems(items);
+
+    const totals: Record<string, number> = {};
+
+    for (const item of items) {
+      totals[item.menu_item_id] =
+        (totals[item.menu_item_id] ?? 0) + item.quantity;
+    }
+
+    setCart(totals);
+  }
+
   function stars(rating: number) {
     return "★".repeat(rating) + "☆".repeat(5 - rating);
+  }
+
+  useEffect(() => {
+    const storageKey = `tablemind-session-${publicToken}`;
+    const savedSession = localStorage.getItem(storageKey);
+
+    if (savedSession) {
+      try {
+        setTableSession(JSON.parse(savedSession));
+      } catch {
+        localStorage.removeItem(storageKey);
+      }
+    }
+
+    setSessionLoaded(true);
+  }, [publicToken]);
+
+  function handleJoined(result: TableSessionIdentity) {
+    const storageKey = `tablemind-session-${publicToken}`;
+
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(result)
+    );
+
+    setTableSession(result);
   }
 
   useEffect(() => {
@@ -99,71 +161,238 @@ export default function CustomerMenu({
     loadReviews();
   }, [publicToken]);
 
-  function addToCart(menuItemId: string) {
-    setCart((currentCart) => ({
-      ...currentCart,
-      [menuItemId]: (currentCart[menuItemId] ?? 0) + 1,
-    }));
-  }
-
-  function removeFromCart(menuItemId: string) {
-    setCart((currentCart) => {
-      const currentQuantity = currentCart[menuItemId] ?? 0;
-
-      if (currentQuantity <= 1) {
-        const updatedCart = { ...currentCart };
-        delete updatedCart[menuItemId];
-        return updatedCart;
-      }
-
-      return {
-        ...currentCart,
-        [menuItemId]: currentQuantity - 1,
-      };
-    });
-  }
-
-  function clearCart() {
-    setCart({});
-    setIsCartOpen(false);
-  }
-  async function placeOrder() {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-    if (!apiBaseUrl) {
-      alert("API URL is not configured.");
+  useEffect(() => {
+    if (!tableSession) {
       return;
     }
 
-    try {
-      setIsSubmitting(true);
+    let cancelled = false;
+    const sessionPublicToken = tableSession.session_public_token;
 
-      const response = await fetch(`${apiBaseUrl}/orders`, {
-        method: "POST",
+    async function loadSharedCart() {
+      const apiBaseUrl =
+        process.env.NEXT_PUBLIC_API_BASE_URL ??
+        "http://127.0.0.1:8000";
+
+      try {
+        const response = await fetch(
+          `${apiBaseUrl}/public/table-sessions/${sessionPublicToken}/cart`
+        );
+
+        if (response.status === 404) {
+          if (cancelled) {
+            return;
+          }
+
+          localStorage.removeItem(
+            `tablemind-session-${publicToken}`
+          );
+
+          setTableSession(null);
+          applySharedCart([]);
+          setIsCartOpen(false);
+
+          return;
+        }
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!cancelled) {
+          applySharedCart(data.items);
+        }
+      } catch {
+        // Temporary network failure: preserve the customer's session.
+      }
+    }
+
+    loadSharedCart();
+
+    const intervalId = window.setInterval(
+      loadSharedCart,
+      2000
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [tableSession, publicToken]);
+
+  async function updateMyCartItem(
+    menuItemId: string,
+    quantity: number
+  ) {
+    if (!tableSession) {
+      return;
+    }
+
+    const apiBaseUrl =
+      process.env.NEXT_PUBLIC_API_BASE_URL ??
+      "http://127.0.0.1:8000";
+
+    const response = await fetch(
+      `${apiBaseUrl}/public/table-sessions/${tableSession.session_public_token}/cart/${menuItemId}`,
+      {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          public_token: publicToken,
-          items: cartItems.map((item) => ({
-            menu_item_id: item.id,
-            quantity: item.quantity,
-          })),
+          participant_public_token:
+            tableSession.participant_public_token,
+          quantity,
         }),
-      });
+      }
+    );
 
-      if (!response.ok) {
-        throw new Error("Order failed");
+    if (!response.ok) {
+      return;
+    }
+
+    const data = await response.json();
+
+    applySharedCart(data.items);
+  }
+
+  function myItemQuantity(menuItemId: string) {
+    return sharedCartItems
+      .filter(
+        (item) =>
+          item.menu_item_id === menuItemId &&
+          item.participant_public_token ===
+            tableSession?.participant_public_token
+      )
+      .reduce(
+        (total, item) => total + item.quantity,
+        0
+      );
+  }
+
+  function addToCart(menuItemId: string) {
+    void updateMyCartItem(
+      menuItemId,
+      myItemQuantity(menuItemId) + 1
+    );
+  }
+
+  function removeFromCart(menuItemId: string) {
+    const quantity = myItemQuantity(menuItemId);
+
+    void updateMyCartItem(
+      menuItemId,
+      Math.max(0, quantity - 1)
+    );
+  }
+
+  async function clearCart() {
+    if (!tableSession) {
+      return;
+    }
+
+    const myItems = sharedCartItems.filter(
+      (item) =>
+        item.participant_public_token ===
+        tableSession.participant_public_token
+    );
+
+    if (myItems.length === 0) {
+      setIsCartOpen(false);
+      return;
+    }
+
+    const apiBaseUrl =
+      process.env.NEXT_PUBLIC_API_BASE_URL ??
+      "http://127.0.0.1:8000";
+
+    try {
+      await Promise.all(
+        myItems.map((item) =>
+          fetch(
+            `${apiBaseUrl}/public/table-sessions/${tableSession.session_public_token}/cart/${item.menu_item_id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                participant_public_token:
+                  tableSession.participant_public_token,
+                quantity: 0,
+              }),
+            }
+          )
+        )
+      );
+
+      const response = await fetch(
+        `${apiBaseUrl}/public/table-sessions/${tableSession.session_public_token}/cart`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        applySharedCart(data.items);
       }
 
-      const createdOrder: PlacedOrder = await response.json();
+      setIsCartOpen(false);
+    } catch {
+      alert("Could not clear your items.");
+    }
+  }
+  async function placeOrder() {
+    if (!tableSession) {
+      alert("Table session is not ready.");
+      return;
+    }
 
-      setCart({});
+    const apiBaseUrl =
+      process.env.NEXT_PUBLIC_API_BASE_URL ??
+      "http://127.0.0.1:8000";
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await fetch(
+        `${apiBaseUrl}/public/table-sessions/${tableSession.session_public_token}/checkout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            participant_public_token:
+              tableSession.participant_public_token,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+
+        throw new Error(
+          errorData?.detail ?? "Could not place order."
+        );
+      }
+
+      const createdOrder: PlacedOrder =
+        await response.json();
+
+      applySharedCart([]);
       setIsCartOpen(false);
       setPlacedOrder(createdOrder);
-      router.push(`/order/${createdOrder.public_token}`);
-    } catch {
-      alert("Could not place order. Please try again.");
+
+      router.push(
+        `/order/${createdOrder.public_token}`
+      );
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Could not place order. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -242,6 +471,12 @@ export default function CustomerMenu({
 
   return (
     <main className="min-h-screen bg-[#fbf7f3] pb-32 text-[#241c18]">
+      {sessionLoaded && !tableSession && (
+        <JoinTableSession
+          publicToken={publicToken}
+          onJoined={handleJoined}
+        />
+      )}
       {placedOrder && (
         <div className="mx-auto mt-5 max-w-xl px-5">
           <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-center">
@@ -668,6 +903,13 @@ export default function CustomerMenu({
         restaurantName={table.restaurant_name}
         tableNumber={table.table_number}
         items={cartItems}
+        sharedItems={sharedCartItems}
+        currentParticipantToken={
+          tableSession?.participant_public_token ?? null
+        }
+        currentParticipantName={
+          tableSession?.display_name ?? "Me"
+        }
         subtotal={totalCartPrice}
         onClose={() => setIsCartOpen(false)}
         onAdd={addToCart}
@@ -710,13 +952,7 @@ export default function CustomerMenu({
 
             <AiMenuAssistant
               publicToken={publicToken}
-              onAddToOrder={(menuItemId) =>
-                setCart((current) => ({
-                  ...current,
-                  [menuItemId]:
-                    (current[menuItemId] || 0) + 1,
-                }))
-              }
+              onAddToOrder={addToCart}
             />
           </div>
         </div>
@@ -725,4 +961,4 @@ export default function CustomerMenu({
       <CallStaff publicToken={publicToken} />
     </main>
   );
-}
+} 

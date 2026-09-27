@@ -17,6 +17,13 @@ type RestaurantTable = {
   created_at: string;
 };
 
+type TableSessionStatus = {
+  table_id: string;
+  table_number: number;
+  status: "free" | "occupied";
+  active_session_id: string | null;
+};
+
 type ExistingTablesProps = {
   refreshKey: number;
 };
@@ -25,6 +32,11 @@ export default function ExistingTables({
   refreshKey,
 }: ExistingTablesProps) {
   const [tables, setTables] = useState<RestaurantTable[]>([]);
+  const [sessionStatuses, setSessionStatuses] = useState<
+    TableSessionStatus[]
+  >([]);
+  const [clearingTableId, setClearingTableId] =
+    useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,6 +67,24 @@ export default function ExistingTables({
         if (!isCancelled) {
           setTables(responseData as RestaurantTable[]);
         }
+
+        const statusResponse = await fetch(
+          `${apiBaseUrl}/admin/tables/session-status`
+        );
+
+        const statusData = await statusResponse.json();
+
+        if (!statusResponse.ok) {
+          throw new Error(
+            statusData.detail ?? "Unable to load table status."
+          );
+        }
+
+        if (!isCancelled) {
+          setSessionStatuses(
+            statusData as TableSessionStatus[]
+          );
+        }
       } catch (error) {
         if (!isCancelled) {
           setErrorMessage(
@@ -76,6 +106,59 @@ export default function ExistingTables({
       isCancelled = true;
     };
   }, [refreshKey]);
+
+  async function clearTable(tableId: string) {
+    const confirmed = window.confirm(
+      "Clear this table? The current dining session and shared cart will be closed."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const apiBaseUrl =
+      process.env.NEXT_PUBLIC_API_BASE_URL ??
+      "http://127.0.0.1:8000";
+
+    try {
+      setClearingTableId(tableId);
+
+      const response = await fetch(
+        `${apiBaseUrl}/admin/tables/${tableId}/clear-session`,
+        {
+          method: "POST",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ?? "Could not clear table."
+        );
+      }
+
+      setSessionStatuses((current) =>
+        current.map((tableStatus) =>
+          tableStatus.table_id === tableId
+            ? {
+                ...tableStatus,
+                status: "free",
+                active_session_id: null,
+              }
+            : tableStatus
+        )
+      );
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Could not clear table."
+      );
+    } finally {
+      setClearingTableId(null);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -134,11 +217,19 @@ export default function ExistingTables({
       </div>
 
       <div className="grid w-full min-w-0 grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {tables.map((table) => (
-          <section
-            key={table.id}
-            className="min-w-0 rounded-2xl border border-[#e8ddd2] bg-[#fcf9f8] p-5 transition hover:-translate-y-0.5 hover:shadow-md"
-          >
+        {tables.map((table) => {
+          const sessionStatus = sessionStatuses.find(
+            (status) => status.table_id === table.id
+          );
+
+          const isOccupied =
+            sessionStatus?.status === "occupied";
+
+          return (
+            <section
+              key={table.id}
+              className="min-w-0 rounded-2xl border border-[#e8ddd2] bg-[#fcf9f8] p-5 transition hover:-translate-y-0.5 hover:shadow-md"
+            >
             <div className="flex items-start justify-between">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ffddb8] text-[#855300]">
                 <Table2 size={22} />
@@ -152,6 +243,18 @@ export default function ExistingTables({
                 }`}
               >
                 {table.is_active ? "Active" : "Inactive"}
+              </span>
+            </div>
+
+            <div className="mt-4">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  isOccupied
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-green-100 text-green-700"
+                }`}
+              >
+                {isOccupied ? "Occupied" : "Free"}
               </span>
             </div>
 
@@ -184,8 +287,22 @@ export default function ExistingTables({
                 Open
               </a>
             </div>
-          </section>
-        ))}
+
+            {isOccupied && (
+              <button
+                type="button"
+                onClick={() => clearTable(table.id)}
+                disabled={clearingTableId === table.id}
+                className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+              >
+                {clearingTableId === table.id
+                  ? "Clearing..."
+                  : "Clear Table"}
+              </button>
+            )}
+            </section>
+          );
+        })}
       </div>
     </article>
   );

@@ -17,6 +17,12 @@ from app.api.routes.admin_feedback import router as admin_feedback_router
 from app.api.routes.ai_menu import router as ai_menu_router
 from app.api.routes.public_staff_requests import router as public_staff_requests_router
 from app.api.routes.admin_staff_requests import router as admin_staff_requests_router
+from app.api.routes.public_table_sessions import router as public_table_sessions_router
+from app.api.routes.public_shared_cart import router as public_shared_cart_router
+from app.api.routes.admin_floor import router as admin_floor_router
+from app.api.routes.admin_table_sessions import (
+    router as admin_table_sessions_router,
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -45,7 +51,10 @@ app.include_router(admin_feedback_router)
 app.include_router(ai_menu_router)
 app.include_router(public_staff_requests_router)
 app.include_router(admin_staff_requests_router)
-
+app.include_router(public_table_sessions_router)
+app.include_router(public_shared_cart_router)
+app.include_router(admin_table_sessions_router)
+app.include_router(admin_floor_router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}

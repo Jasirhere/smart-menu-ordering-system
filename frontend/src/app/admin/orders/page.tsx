@@ -1,7 +1,8 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-
+import Link from "next/link";
 type OrderItem = {
     item_name: string;
     unit_price: string;
@@ -50,6 +51,9 @@ function timeAgo(date: string) {
 }
 
 export default function AdminOrdersPage() {
+    const searchParams = useSearchParams();
+    const tableFilter = searchParams.get("table");
+
     const [orders, setOrders] = useState<Order[]>([]);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
@@ -124,10 +128,15 @@ export default function AdminOrdersPage() {
     const filteredOrders = orders.filter((order) => {
         const query = searchQuery.toLowerCase();
 
-        return (
+        const matchesSearch =
             order.id.toLowerCase().includes(query) ||
-            String(order.table_number).includes(query)
-        );
+            String(order.table_number).includes(query);
+
+        const matchesTable =
+            !tableFilter ||
+            String(order.table_number) === tableFilter;
+
+        return matchesSearch && matchesTable;
     });
 
     const groupedOrders = useMemo(
@@ -165,6 +174,19 @@ export default function AdminOrdersPage() {
                     Manage and track restaurant orders.
                 </p>
             </header>
+
+            {tableFilter && (
+                <div className="mb-5 flex w-fit items-center gap-3 rounded-full bg-[#fff0d9] px-4 py-2 text-sm font-semibold text-[#855300]">
+                    <span>Viewing Table {tableFilter}</span>
+
+                    <Link
+                        href="/admin/orders"
+                        className="font-bold hover:underline"
+                    >
+                        × Clear
+                    </Link>
+                </div>
+            )}
 
             <input
                 type="search"

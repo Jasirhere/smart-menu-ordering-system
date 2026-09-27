@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Minus,
   Plus,
@@ -16,11 +16,21 @@ export type CartLineItem = {
   quantity: number;
 };
 
+type SharedCartPersonItem = {
+  menu_item_id: string;
+  participant_public_token: string;
+  participant_name: string;
+  quantity: number;
+};
+
 type CartReviewDrawerProps = {
   isOpen: boolean;
   restaurantName: string;
   tableNumber: number;
   items: CartLineItem[];
+  currentParticipantToken: string | null;
+  currentParticipantName: string;
+  sharedItems: SharedCartPersonItem[];
   subtotal: number;
   onClose: () => void;
   onAdd: (menuItemId: string) => void;
@@ -42,6 +52,9 @@ export default function CartReviewDrawer({
   restaurantName,
   tableNumber,
   items,
+  currentParticipantToken,
+  currentParticipantName,
+  sharedItems,
   subtotal,
   onClose,
   onAdd,
@@ -72,11 +85,87 @@ export default function CartReviewDrawer({
     };
   }, [isOpen, onClose]);
 
+  const [selectedParticipant, setSelectedParticipant] =
+    useState<string>("all");
+
+  const participants = useMemo(() => {
+    const people = new Map<string, string>();
+
+    if (currentParticipantToken) {
+      people.set(
+        currentParticipantToken,
+        currentParticipantName
+      );
+    }
+
+    for (const item of sharedItems) {
+      people.set(
+        item.participant_public_token,
+        item.participant_name
+      );
+    }
+
+    return Array.from(people.entries()).map(
+      ([token, name]) => ({
+        token,
+        name,
+      })
+    );
+  }, [
+    sharedItems,
+    currentParticipantToken,
+    currentParticipantName,
+  ]);
+
+  const visibleItems = useMemo(() => {
+    if (selectedParticipant === "all") {
+      return items;
+    }
+
+    return items
+      .map((item) => {
+        const quantity = sharedItems
+          .filter(
+            (sharedItem) =>
+              sharedItem.menu_item_id === item.id &&
+              sharedItem.participant_public_token ===
+                selectedParticipant
+          )
+          .reduce(
+            (total, sharedItem) =>
+              total + sharedItem.quantity,
+            0
+          );
+
+        return {
+          ...item,
+          quantity,
+        };
+      })
+      .filter((item) => item.quantity > 0);
+  }, [items, sharedItems, selectedParticipant]);
+
+  const visibleSubtotal = visibleItems.reduce(
+    (total, item) =>
+      total + Number(item.price) * item.quantity,
+    0
+  );
+
+  const selectedParticipantName =
+    participants.find(
+      (person) =>
+        person.token === selectedParticipant
+    )?.name ?? "";
+
+  const canEdit =
+    selectedParticipant === "all" ||
+    selectedParticipant === currentParticipantToken;
+
   if (!isOpen) {
     return null;
   }
 
-  const totalItems = items.reduce(
+  const totalItems = visibleItems.reduce(
     (total, item) => total + item.quantity,
     0,
   );
@@ -134,12 +223,59 @@ export default function CartReviewDrawer({
               className="flex items-center gap-2 text-sm font-semibold text-red-700 transition hover:text-red-900"
             >
               <Trash2 size={16} />
-              Clear cart
+              Clear my items
             </button>
           </div>
 
+          <div className="mt-4">
+            <label className="mb-1 block text-xs font-semibold text-[#76665b]">
+              View cart
+            </label>
+
+            <select
+              value={selectedParticipant}
+              onChange={(event) =>
+                setSelectedParticipant(event.target.value)
+              }
+              className="w-full rounded-xl border border-[#e6d8cc] bg-white px-4 py-3 text-sm font-medium outline-none"
+            >
+              <option value="all">
+                Everyone
+              </option>
+
+              {currentParticipantToken && (
+                <option value={currentParticipantToken}>
+                  My items ({currentParticipantName})
+                </option>
+              )}
+
+              {participants
+                .filter(
+                  (person) =>
+                    person.token !== currentParticipantToken
+                )
+                .map((person) => (
+                  <option
+                    key={person.token}
+                    value={person.token}
+                  >
+                    {person.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+
           <div className="mt-5 space-y-4">
-            {items.map((item) => {
+            {visibleItems.map((item) => {
+              const contributions = sharedItems.filter(
+                (sharedItem) =>
+                  sharedItem.menu_item_id === item.id &&
+                  (
+                    selectedParticipant === "all" ||
+                    sharedItem.participant_public_token ===
+                      selectedParticipant
+                  )
+              );
               const itemTotal =
                 Number(item.price) * item.quantity;
 
@@ -157,6 +293,17 @@ export default function CartReviewDrawer({
                       <p className="mt-1 text-sm text-[#77685e]">
                         {formatPrice(Number(item.price))} each
                       </p>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {contributions.map((person, index) => (
+                          <span
+                            key={`${person.participant_name}-${index}`}
+                            className="rounded-full bg-[#f3eee9] px-3 py-1 text-xs font-medium text-[#62564e]"
+                          >
+                            {person.participant_name} ×{person.quantity}
+                          </span>
+                        ))}
+                      </div>
                     </div>
 
                     <p className="shrink-0 font-bold text-[#9a4f11]">
@@ -164,29 +311,35 @@ export default function CartReviewDrawer({
                     </p>
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between rounded-xl bg-[#fff4e5] p-2">
-                    <button
-                      type="button"
-                      onClick={() => onRemove(item.id)}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#8a5200] shadow-sm transition hover:bg-[#f8eee5]"
-                      aria-label={`Remove one ${item.name}`}
-                    >
-                      <Minus size={18} />
-                    </button>
+                  {canEdit ? (
+                    <div className="mt-4 flex items-center justify-between rounded-xl bg-[#fff4e5] p-2">
+                      <button
+                        type="button"
+                        onClick={() => onRemove(item.id)}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#8a5200] shadow-sm transition hover:bg-[#f8eee5]"
+                        aria-label={`Remove one ${item.name}`}
+                      >
+                        <Minus size={18} />
+                      </button>
 
-                    <span className="font-bold text-[#5c3900]">
-                      {item.quantity}
-                    </span>
+                      <span className="font-bold text-[#5c3900]">
+                        {item.quantity}
+                      </span>
 
-                    <button
-                      type="button"
-                      onClick={() => onAdd(item.id)}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#9a5d00] text-white shadow-sm transition hover:bg-[#7f4d00]"
-                      aria-label={`Add another ${item.name}`}
-                    >
-                      <Plus size={18} />
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => onAdd(item.id)}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#9a5d00] text-white shadow-sm transition hover:bg-[#7f4d00]"
+                        aria-label={`Add another ${item.name}`}
+                      >
+                        <Plus size={18} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-xl bg-[#f3eee9] px-4 py-3 text-center text-xs font-medium text-[#76665b]">
+                      Viewing {selectedParticipantName}&apos;s items
+                    </div>
+                  )}
                 </article>
               );
             })}
@@ -197,16 +350,24 @@ export default function CartReviewDrawer({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-[#76665b]">
-                Subtotal
+                {selectedParticipant === "all"
+                  ? "Table subtotal"
+                  : `${selectedParticipantName}'s subtotal`}
               </p>
 
-              <p className="text-xs text-[#95877d]">
-                Table {tableNumber}
-              </p>
+              {selectedParticipant !== "all" && (
+                <p className="text-xs text-[#95877d]">
+                  Table total {formatPrice(subtotal)}
+                </p>
+              )}
             </div>
 
             <p className="font-heading text-3xl font-bold">
-              {formatPrice(subtotal)}
+              {formatPrice(
+                selectedParticipant === "all"
+                  ? subtotal
+                  : visibleSubtotal
+              )}
             </p>
           </div>
 

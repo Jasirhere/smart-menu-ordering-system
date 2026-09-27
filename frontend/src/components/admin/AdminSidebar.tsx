@@ -10,7 +10,7 @@ import {
   Table2,
   UtensilsCrossed,
 } from "lucide-react";
-
+import { LayoutGrid } from "lucide-react";
 const navigation = [
   {
     label: "Dashboard",
@@ -31,6 +31,11 @@ const navigation = [
     label: "Tables",
     href: "/admin/tables",
     icon: Table2,
+  },
+  {
+    label: "Floor",
+    href: "/admin/floor",
+    icon: LayoutGrid,
   },
   {
     label: "Analytics",
