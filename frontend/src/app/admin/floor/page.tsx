@@ -20,6 +20,45 @@ type FloorTable = {
 export default function AdminFloorPage() {
   const [tables, setTables] = useState<FloorTable[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [clearingTableId, setClearingTableId] = useState<string | null>(null);
+
+  async function clearTable(tableId: string) {
+    const apiBaseUrl =
+      process.env.NEXT_PUBLIC_API_BASE_URL ??
+      "http://127.0.0.1:8000";
+
+    try {
+      setClearingTableId(tableId);
+
+      const response = await fetch(
+        `${apiBaseUrl}/admin/tables/${tableId}/clear-session`,
+        {
+          method: "POST",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.detail ?? "Could not clear table.");
+        return;
+      }
+
+      setTables((currentTables) =>
+        currentTables.map((table) =>
+          table.table_id === tableId
+            ? {
+                ...table,
+                status: "free",
+                active_session_id: null,
+              }
+            : table
+        )
+      );
+    } finally {
+      setClearingTableId(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +116,14 @@ export default function AdminFloorPage() {
   const occupiedCount = tables.filter(
     (table) => table.status === "occupied"
   ).length;
+  const activeOrderCount = tables.reduce(
+    (total, table) => total + table.active_orders,
+    0
+  );
+
+  const waitingStaffCalls = tables.filter(
+    (table) => table.has_new_staff_request
+  ).length;
 
   return (
     <main className="p-6 lg:p-10">
@@ -93,6 +140,38 @@ export default function AdminFloorPage() {
           {occupiedCount} occupied ·{" "}
           {tables.length - occupiedCount} free
         </p>
+      </div>
+
+      <div className="mb-8 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border bg-white p-5">
+          <p className="text-xs font-semibold uppercase text-gray-500">
+            Occupied Tables
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {occupiedCount} / {tables.length}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-5">
+          <p className="text-xs font-semibold uppercase text-gray-500">
+            Active Orders
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {activeOrderCount}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-5">
+          <p className="text-xs font-semibold uppercase text-gray-500">
+            Waiting Staff Calls
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {waitingStaffCalls}
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -143,10 +222,13 @@ export default function AdminFloorPage() {
                 </div>
 
                 {table.has_new_staff_request && (
-                  <div className="flex items-center gap-3 rounded-xl bg-red-100 px-3 py-3 text-sm font-bold text-red-700">
+                  <Link
+                    href="/admin/staff-requests"
+                    className="flex items-center gap-3 rounded-xl bg-red-100 px-3 py-3 text-sm font-bold text-red-700 transition hover:bg-red-200"
+                  >
                     <BellRing size={18} />
-                    Staff requested
-                  </div>
+                    Staff requested — View
+                  </Link>
                 )}
               </div>
 
@@ -157,6 +239,19 @@ export default function AdminFloorPage() {
                 >
                   View Orders
                 </Link>
+              )}
+
+              {isOccupied && (
+                <button
+                  type="button"
+                  disabled={clearingTableId === table.table_id}
+                  onClick={() => clearTable(table.table_id)}
+                  className="mt-3 w-full rounded-xl border border-[#855300] px-4 py-3 text-sm font-semibold text-[#855300] disabled:opacity-50"
+                >
+                  {clearingTableId === table.table_id
+                    ? "Clearing..."
+                    : "Clear Table"}
+                </button>
               )}
             </article>
           );
